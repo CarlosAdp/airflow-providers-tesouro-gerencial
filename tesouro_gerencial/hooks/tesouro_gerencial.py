@@ -1,19 +1,22 @@
 from urllib.parse import urljoin
+import logging
 
 from airflow.exceptions import AirflowException
 from siafi.hooks.siafi import SIAFIHook
 import requests
 
 
+logger = logging.getLogger(__name__)
+
+
 class TesouroGerencialHook(SIAFIHook):
     '''Hook para interação com Tesouro Gerencial.'''
     URL = 'https://tesourogerencial.tesouro.gov.br/'
 
-    def inicia_sessao(self) -> str:
-        '''Solicita início de sessão e retorna identificador.
+    string_sessao: str
 
-        :return: string de sessão :rtype: str
-        '''
+    def __enter__(self) -> 'TesouroGerencialHook':
+        '''Inicia sessão.'''
         url = urljoin(self.URL, 'tg/servlet/taskAdmin')
         params = {
             'taskId': 'senhaMstrSSOTask',
@@ -29,12 +32,18 @@ class TesouroGerencialHook(SIAFIHook):
 
         resposta = requests.get(url, params=params, verify=False)
         resposta_json = resposta.json()
-        sessao = resposta_json.get('sessionState')
+        self.string_sessao = resposta_json.get('sessionState')
 
-        if sessao is None:
+        if self.string_sessao is None:
             raise AirflowException(
                 'Erro ao iniciar sessão no Tesouro Gerencial. Retorno: '
                 f'{resposta.text}'
             )
 
-        return sessao
+        return self
+
+    def __exit__(self, *args, **kwargs) -> None:
+        '''Encerra sessão.'''
+        url = urljoin(self.URL, 'tg/servlet/taskAdmin')
+        params = {'taskId': 'logout', 'sessionState': self.string_sessao}
+        requests.get(url, params=params, verify=False)

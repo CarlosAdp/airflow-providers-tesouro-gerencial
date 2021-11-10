@@ -1,5 +1,5 @@
 ---
-package-name: sdd-airflow-providers-tesouro-gerencial
+package-name: eb-airflow-providers-tesouro-gerencial
 name: Tesouro Gerencial
 description: |
     `Tesouro Gerencial <https://tesourogerencial.tesouro.gov.br/>`__
@@ -9,3 +9,5 @@ versions:
 
 additional-dependencies:
   - apache-airflow>=2.1.0
+  - eb-airflow-providers-siafi
+  - requests

@@ -1,5 +1,5 @@
 ---
-package-name: sed-airflow-providers-tesouro-gerencial
+package-name: sdd-airflow-providers-tesouro-gerencial
 name: Tesouro Gerencial
 description: |
     `Tesouro Gerencial <https://tesourogerencial.tesouro.gov.br/>`__

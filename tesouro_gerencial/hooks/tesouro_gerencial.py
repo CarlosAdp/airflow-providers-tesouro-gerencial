@@ -1,8 +1,10 @@
+from io import BytesIO
 from urllib.parse import urljoin
 import logging
 
 from airflow.exceptions import AirflowException
 from siafi.hooks.siafi import SIAFIHook
+import pandas
 import requests
 
 
@@ -47,3 +49,23 @@ class TesouroGerencialHook(SIAFIHook):
         url = urljoin(self.URL, 'tg/servlet/taskAdmin')
         params = {'taskId': 'logout', 'sessionState': self.string_sessao}
         requests.get(url, params=params, verify=False)
+
+    def retorna_relatorio(self, id_relatorio: str) -> pandas.DataFrame:
+        url = urljoin(self.URL, 'tg/servlet/taskAdmin')
+        params = {
+            'taskId': 'exportReport',
+            'taskEnv': 'juil_iframe',
+            'taskContent': 'json',
+            'sessionState': self.string_sessao,
+            'executionMode': 4,
+            'expandPageBy': True,
+            'reportID': id_relatorio
+        }
+        resposta = requests.get(url, params=params, verify=False)
+        print(resposta.content)
+
+        with BytesIO() as arquivo:
+            arquivo.write(resposta.content)
+            arquivo.seek(0)
+
+            return pandas.read_csv(arquivo)

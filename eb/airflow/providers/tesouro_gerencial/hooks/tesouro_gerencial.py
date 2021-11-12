@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 import logging
 
 from airflow.exceptions import AirflowException
-from siafi.hooks.siafi import SIAFIHook
+from eb.airflow.providers.siafi.hooks.siafi import SIAFIHook
 import pandas
 import requests
 

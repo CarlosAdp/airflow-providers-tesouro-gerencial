@@ -1,1 +1,1 @@
-recursive-include tesouro_gerencial *.yaml
+recursive-include eb/airflow/providers/tesouro_gerencial *.yaml

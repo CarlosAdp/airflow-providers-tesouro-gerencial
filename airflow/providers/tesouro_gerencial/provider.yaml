@@ -1,14 +1,14 @@
 ---
-package-name: eb-airflow-providers-tesouro-gerencial
+package-name: airflow-providers-tesouro-gerencial
 name: Tesouro Gerencial
 description: |
     `Tesouro Gerencial <https://tesourogerencial.tesouro.gov.br/>`__
 
 versions:
-  - 1.0.0a
+  - 1.0.0
 
 additional-dependencies:
   - apache-airflow>=2.1.0
-  - eb-airflow-providers-siafi
+  - airflow-providers-siafi
   - requests
   - pandas

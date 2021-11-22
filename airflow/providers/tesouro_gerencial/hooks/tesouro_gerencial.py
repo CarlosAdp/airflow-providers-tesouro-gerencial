@@ -1,4 +1,5 @@
 from io import StringIO
+from typing import List
 from urllib.parse import urljoin
 import logging
 import re
@@ -56,7 +57,11 @@ class TesouroGerencialHook(SIAFIHook):
         params = {'taskId': 'logout', 'sessionState': self.string_sessao}
         requests.get(url, params=params, verify=False)
 
-    def retorna_relatorio(self, id_relatorio: str) -> pandas.DataFrame:
+    def retorna_relatorio(
+        self,
+        id_relatorio: str,
+        valoresPrompts: List[str]
+    ) -> pandas.DataFrame:
         url = urljoin(self.URL, 'tg/servlet/taskAdmin')
         params = {
             'taskId': 'exportReport',
@@ -65,9 +70,14 @@ class TesouroGerencialHook(SIAFIHook):
             'sessionState': self.string_sessao,
             'executionMode': 4,
             'expandPageBy': True,
-            'reportID': id_relatorio
+            'reportID': id_relatorio,
+            'valuePromptAnswers': '^'.join(valoresPrompts)
         }
-        resposta = requests.get(url, params=params, verify=False)
+        requisicao = requests.Request('GET', url, params=params)
+        requisicao_preparada = requisicao.prepare()
+        logger.info(requisicao_preparada.url)
+
+        resposta = requests.get(requisicao_preparada.url, verify=False)
         conteudo = resposta.content.decode('utf-16')
         conteudo = re.sub(pattern=r'.*\r\n\r\n', repl='', string=conteudo)
 

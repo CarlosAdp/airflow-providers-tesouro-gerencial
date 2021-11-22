@@ -1,18 +1,24 @@
-from io import BytesIO
+from io import StringIO
 from urllib.parse import urljoin
 import logging
+import re
+import warnings
 
 from airflow.exceptions import AirflowException
 from airflow.providers.siafi.hooks.siafi import SIAFIHook
 import pandas
 import requests
 
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 logger = logging.getLogger(__name__)
 
 
 class TesouroGerencialHook(SIAFIHook):
-    '''Hook para interação com Tesouro Gerencial.'''
+    '''Hook para interação com Tesouro Gerencial.
+
+    Classe herdada de :class:`airflow.providers.siafi.hooks.siafi.SIAFIHook`
+    '''
     URL = 'https://tesourogerencial.tesouro.gov.br/'
 
     string_sessao: str
@@ -62,10 +68,11 @@ class TesouroGerencialHook(SIAFIHook):
             'reportID': id_relatorio
         }
         resposta = requests.get(url, params=params, verify=False)
-        print(resposta.content)
+        conteudo = resposta.content.decode('utf-16')
+        conteudo = re.sub(pattern=r'.*\r\n\r\n', repl='', string=conteudo)
 
-        with BytesIO() as arquivo:
-            arquivo.write(resposta.content)
+        with StringIO() as arquivo:
+            arquivo.write(conteudo)
             arquivo.seek(0)
 
             return pandas.read_csv(arquivo)

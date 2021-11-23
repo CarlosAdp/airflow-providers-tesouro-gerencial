@@ -21,7 +21,7 @@ class TesouroGerencialHook(SIAFIHook):
     class FORMATO(Enum):
         PDF = 'pdf'
         CSV = 'csv'
-        EXCEL = 'xlsx'
+        EXCEL = 'excel'
 
     URL = 'https://tesourogerencial.tesouro.gov.br/'
 

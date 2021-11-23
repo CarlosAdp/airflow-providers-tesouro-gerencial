@@ -1,13 +1,11 @@
-from io import StringIO
-from typing import Dict, List
+from enum import Enum
+from typing import List, Union
 from urllib.parse import urljoin
 import logging
-import re
 import warnings
 
 from airflow.exceptions import AirflowException
 from airflow.providers.siafi.hooks.siafi import SIAFIHook
-import pandas
 import requests
 
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
@@ -20,6 +18,11 @@ class TesouroGerencialHook(SIAFIHook):
 
     Classe herdada de :class:`airflow.providers.siafi.hooks.siafi.SIAFIHook`
     '''
+    class FORMATO(Enum):
+        PDF = 'pdf'
+        CSV = 'csv'
+        EXCEL = 'xlsx'
+
     URL = 'https://tesourogerencial.tesouro.gov.br/'
 
     string_sessao: str
@@ -60,54 +63,60 @@ class TesouroGerencialHook(SIAFIHook):
     def retorna_relatorio(
         self,
         id_relatorio: str,
+        formato: Union[str, FORMATO] = FORMATO.CSV,
         respostas_prompts_valor: List[str] = None,
-        respostas_prompts_selecao: Dict[str, List[str]] = None
-    ) -> pandas.DataFrame:
+    ) -> bytes:
+        '''Retorna um relatório do Tesouro Gerencial.
+
+        :param id_relatorio: ID do relatório
+        :type id_relatorio: str
+        :param formato: formato do relatório a ser buscado no Tesouro
+        Gerencial, podendo ser "csv", "excel" ou "pdf". O atributo
+        :attr:`~TesouroGerencialHook.FORMATO` também pode ser utilizado.
+        :type formato: Union[str, TesouroGerencialHook.FORMATO]
+        :param respostas_prompts_valor: lista com respostas de prompts de
+        valor, respeitando sua ordem conforme consta no relatório
+        :type respostas_prompts_valor: List[str]
+        :return: conteúdo do relatório, em cadeia de caracteres binários
+        :rtype: bytes
+        '''
         url = urljoin(self.URL, 'tg/servlet/taskAdmin')
         params = {
             'taskId': 'exportReport',
             'taskEnv': 'juil_iframe',
             'taskContent': 'json',
-            'sessionState': self.string_sessao,
-            'executionMode': 4,
             'expandPageBy': True,
-            'reportID': id_relatorio,
         }
-        if respostas_prompts_valor:
-            params.update({
-                'valuePromptAnswers': '^'.join(respostas_prompts_valor)
-            })
 
-        if respostas_prompts_selecao:
-            params.update({
-                'elementsPromptAnswers': ';'.join(
-                    f'{atributo}:{valor}'
-                    for atributo, valor in respostas_prompts_selecao.items()
-                )
-            })
+        params.update({
+            'sessionState': self.string_sessao,
+            'reportID': id_relatorio,
+            'valuePromptAnswers': '^'.join(respostas_prompts_valor or [])
+        })
+
+        try:
+            formato = self.FORMATO(formato)
+        except ValueError:
+            logger.error('"%s" não é um formato válido', formato)
+            raise
+
+        if formato == self.FORMATO.CSV:
+            params.update({'executionMode': 4, 'plainTextDelimiter': ','})
+        elif formato == self.FORMATO.EXCEL:
+            params.update({'executionMode': 3, 'excelVersion': 4})
+        elif formato == self.FORMATO.PDF:
+            params.update({'executionMode': 2})
 
         requisicao = requests.Request('GET', url, params=params)
         requisicao_preparada = requisicao.prepare()
-        logger.info(url)
+        logger.info(requisicao_preparada.url)
 
-        resposta = requests.get(url, verify=False)
-        with open('test.txt', 'wb') as fd:
-            fd.write(resposta.content)
-        conteudo = resposta.content.decode('utf-16')
-        conteudo = re.sub(pattern=r'.*\r\n\r\n', repl='', string=conteudo)
+        resposta = requests.get(requisicao_preparada.url, verify=False)
 
-        with StringIO() as arquivo:
-            arquivo.write(conteudo)
-            arquivo.seek(0)
-
-            return pandas.read_csv(arquivo)
-
-
-if __name__ == '__main__':
-    with TesouroGerencialHook('teste') as hook:
-        print(hook.retorna_relatorio(
-            id_relatorio='1099EB5111EC4BCCC2FF0080EF2540E7',
-            respostas_prompts_selecao={
-                '262144037': '1048576'
-            }
-        ))
+        if resposta.ok:
+            return resposta.content
+        else:
+            logger.error(
+                'Erro na requisição para relatório: %s', resposta.reason
+            )
+            raise

@@ -116,7 +116,4 @@ class TesouroGerencialHook(SIAFIHook):
         if resposta.ok:
             return resposta.content
         else:
-            logger.error(
-                'Erro na requisição para relatório: %s', resposta.reason
-            )
-            raise
+            raise AirflowException(resposta)

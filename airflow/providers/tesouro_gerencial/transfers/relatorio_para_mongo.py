@@ -3,6 +3,7 @@ from typing import Any, List
 from io import BytesIO
 import json
 
+from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.mongo.hooks.mongo import MongoHook
 import openpyxl
@@ -10,6 +11,7 @@ import pandas
 
 from airflow.providers.tesouro_gerencial.hooks.tesouro_gerencial \
     import TesouroGerencialHook
+from airflow.providers.tesouro_gerencial.utils.excel import consolidar_tabela
 
 
 class RelatorioParaMongo(BaseOperator):
@@ -66,49 +68,45 @@ class RelatorioParaMongo(BaseOperator):
         with TesouroGerencialHook(self.id_conta_siafi) as hook:
             instante = datetime.now()
 
-            relatorio = hook.retorna_relatorio(
-                id_relatorio=self.id_relatorio,
-                formato='excel',
-                respostas_prompts_valor=respostas_prompts_valor
-            )
+            try:
+                relatorio = hook.retorna_relatorio(
+                    id_relatorio=self.id_relatorio,
+                    formato='excel',
+                    respostas_prompts_valor=respostas_prompts_valor
+                )
+            except AirflowException as excecao:
+                resposta = excecao.args[0]
+
+                if resposta.status_code == 500:
+                    self.log.error(
+                        'Erro 500 no servidor. Provável que o relatório ainda '
+                        'não esteja pronto para ser exportado. Por favor, '
+                        'tente novamente.'
+                    )
+
+                raise
 
         with BytesIO() as arquivo:
             arquivo.write(relatorio)
             arquivo.seek(0)
 
-            excel = openpyxl
-            tabela = pandas.read_excel(arquivo, header=None, engine='openpyxl')
+            livro_excel = openpyxl.load_workbook(arquivo)
 
-        # Separa metadados de registros
-        inicio = tabela.head(10)
-        indice_cabecalho = inicio.isnull().all(axis=1).iloc[::-1].idxmax() + 1
-        metadado = tabela.loc[:indice_cabecalho - 1]
-        cabecalho = tabela.loc[indice_cabecalho:indice_cabecalho + 1]
-        dado = tabela.loc[indice_cabecalho + 2:]
+        livro_excel = consolidar_tabela(livro_excel)
 
-        # Prepara metadados
-        metadado = metadado.fillna('')
-        metadado = metadado.apply(' '.join, axis=1).str.strip()
-        metadado = '\n'.join(metadado.loc[metadado != ''])
+        with BytesIO() as arquivo:
+            livro_excel.save(arquivo)
+            dados = pandas.read_excel(arquivo)
 
-        # Prepara cabeçalho
-        cabecalho = cabecalho.fillna('')
-        cabecalho = cabecalho.apply(
-            lambda coluna: ' - '.join(filter(None, coluna))
-            or f'Coluna {coluna.name}'
-        )
-
-        # Prepara dados
-        dado.columns = cabecalho
-        dado['Metadado'] = metadado
-        dado['Timestamp'] = instante
+        dados.columns = dados.columns.str.replace('.', '', regex=False)
+        dados['Timestamp'] = instante
 
         with MongoHook(self.id_conexao_mongo) as hook:
             if self.truncar_colecao:
                 hook.delete_many(self.nome_colecao, {})
 
             inseridos = hook.insert_many(
-                self.nome_colecao, dado.to_dict('records')
+                self.nome_colecao, dados.to_dict('records')
             ).inserted_ids
 
         self.xcom_push(context, 'registros_inseridos', len(inseridos))

@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import List, Union
 from urllib.parse import urljoin
-import logging
 import warnings
 
 from airflow.exceptions import AirflowException
@@ -9,8 +8,6 @@ from airflow.providers.siafi.hooks.siafi import SIAFIHook
 import requests
 
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
-
-logger = logging.getLogger(__name__)
 
 
 class TesouroGerencialHook(SIAFIHook):
@@ -23,35 +20,44 @@ class TesouroGerencialHook(SIAFIHook):
         CSV = 'csv'
         EXCEL = 'excel'
 
+        def __str__(self) -> str:
+            return self.value
+
     URL = 'https://tesourogerencial.tesouro.gov.br/'
 
     string_sessao: str
 
     def __enter__(self) -> 'TesouroGerencialHook':
         '''Inicia sessão.'''
+        super().__enter__()
+
+        cpf = self.cpf
+        senha = self.senha
+
+        self.log.info('Iniciando sessão com usuário "%s"', self.cpf)
+
         url = urljoin(self.URL, 'tg/servlet/taskAdmin')
         params = {
             'taskId': 'senhaMstrSSOTask',
             'taskEnv': 'xhr',
             'taskContentType': 'json',
-            'cpf': self.cpf,
+            'cpf': cpf,
             'token': '',
             'server': '',
             'project': 'TESOURO%20GERENCIAL%20-%20DES',
-            'senha': self.senha,
+            'senha': senha,
             'novaSenha': '',
         }
 
         resposta = requests.get(url, params=params, verify=False)
-        resposta_json = resposta.json()
-        self.string_sessao = resposta_json.get('sessionState')
 
-        if self.string_sessao is None:
-            raise AirflowException(
-                'Erro ao iniciar sessão no Tesouro Gerencial. Retorno: '
-                f'{resposta.text}'
-            )
+        try:
+            resposta_json = resposta.json()
+            self.string_sessao = resposta_json['sessionState']
+        except Exception:
+            raise AirflowException(resposta)
 
+        self.log.info('Sessão iniciado com sucesso')
         return self
 
     def __exit__(self, *args, **kwargs) -> None:
@@ -59,6 +65,8 @@ class TesouroGerencialHook(SIAFIHook):
         url = urljoin(self.URL, 'tg/servlet/taskAdmin')
         params = {'taskId': 'logout', 'sessionState': self.string_sessao}
         requests.get(url, params=params, verify=False)
+
+        self.log.info('Sessão encerrada com sucesso')
 
     def retorna_relatorio(
         self,
@@ -80,6 +88,12 @@ class TesouroGerencialHook(SIAFIHook):
         :return: conteúdo do relatório, em cadeia de caracteres binários
         :rtype: bytes
         '''
+        self.log.info(
+            'Solicitando relatório "%s" no formato "%s" com as seguintes '
+            'respostas para prompts: "%s"',
+            id_relatorio, formato, respostas_prompts_valor
+        )
+
         url = urljoin(self.URL, 'tg/servlet/taskAdmin')
         params = {
             'taskId': 'exportReport',
@@ -97,8 +111,7 @@ class TesouroGerencialHook(SIAFIHook):
         try:
             formato = self.FORMATO(formato)
         except ValueError:
-            logger.error('"%s" não é um formato válido', formato)
-            raise
+            raise AirflowException(f'"{formato}" não é um formato válido')
 
         if formato == self.FORMATO.CSV:
             params.update({'executionMode': 4, 'plainTextDelimiter': ','})
@@ -109,11 +122,12 @@ class TesouroGerencialHook(SIAFIHook):
 
         requisicao = requests.Request('GET', url, params=params)
         requisicao_preparada = requisicao.prepare()
-        logger.info(requisicao_preparada.url)
+        self.log.info('Solicitando URL "%s"', requisicao_preparada.url)
 
         resposta = requests.get(requisicao_preparada.url, verify=False)
 
         if resposta.ok:
+            self.log.info('Relatório gerado com sucesso')
             return resposta.content
         else:
             raise AirflowException(resposta)

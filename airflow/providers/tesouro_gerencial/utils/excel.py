@@ -43,7 +43,7 @@ def consolidar_tabela(livro_excel: openpyxl.Workbook) -> openpyxl.Workbook:
 
         metadados = '\n'.join(filter(None, (
             planilha.cell(linha, 1).value
-            for linha in range(1, divisor - 1)
+            for linha in range(1, divisor)
         )))
 
         planilha.delete_rows(1, divisor)
@@ -51,14 +51,16 @@ def consolidar_tabela(livro_excel: openpyxl.Workbook) -> openpyxl.Workbook:
         metadados = None
 
     # Resolve cabeçalho multi-linha
-    for n_coluna in range(1, planilha.max_column + 1):
-        cima = planilha.cell(1, n_coluna)
-        baixo = planilha.cell(2, n_coluna)
+    if planilha.cell(1, 1).fill.start_color.index \
+            == planilha.cell(2, 1).fill.start_color.index:
+        for n_coluna in range(1, planilha.max_column + 1):
+            cima = planilha.cell(1, n_coluna)
+            baixo = planilha.cell(2, n_coluna)
 
-        if cima.value != baixo.value:
-            baixo.value = cima.value + ' - ' + baixo.value
+            if cima.value != baixo.value:
+                baixo.value = cima.value + ' - ' + baixo.value
 
-    planilha.delete_rows(1, 1)
+        planilha.delete_rows(1, 1)
 
     # Adiciona nova coluna com metadados
     nova_coluna = planilha.max_column + 1

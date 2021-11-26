@@ -51,8 +51,14 @@ class RelatorioParaArquivo(BaseOperator):
         self.respostas_prompts_valor = respostas_prompts_valor
 
     def execute(self, context: Any) -> None:
-        extensao = os.path.splitext(self.caminho_arquivo)[1]
+        self.log.info(
+            'Transferindo relatório "%s" para "%s" com as seguintes respostas '
+            'para prompts: "%s"',
+            self.id_relatorio, self.caminho_arquivo,
+            self.respostas_prompts_valor
+        )
 
+        extensao = os.path.splitext(self.caminho_arquivo)[1]
         if extensao == '.csv':
             formato = TesouroGerencialHook.FORMATO.CSV
         elif extensao == '.xlsx' or extensao == '.xls':
@@ -82,16 +88,18 @@ class RelatorioParaArquivo(BaseOperator):
                 resposta = excecao.args[0]
 
                 if resposta.status_code == 500:
-                    self.log.error(
+                    raise AirflowException(
                         'Erro 500 no servidor. Provável que o relatório ainda '
                         'não esteja pronto para ser exportado. Por favor, '
                         'tente novamente.'
-                    )
+                    ) from None
 
                 raise
 
         with open(self.caminho_arquivo, 'wb') as arquivo:
             arquivo.write(relatorio)
+
+        self.log.info('Transferência realizada com sucesso')
 
         self.xcom_push(
             context, 'caminho', os.path.abspath(self.caminho_arquivo)

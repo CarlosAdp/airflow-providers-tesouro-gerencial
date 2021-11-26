@@ -24,9 +24,13 @@ class RelatorioParaMongo(BaseOperator):
     :type id_relatorio:
     :param id_conexao_mongo: ID de conexão ao MongoDB cadastrada no Airflow
     :type id_conexao_mongo: str
+    :param nome_colecao: Nome da coleção no Mongo onde registros serão salvos
+    :type nome_colecao: str
     :param respostas_prompts_valor: lista com respostas de prompts de valor,
     respeitando sua ordem conforme consta no relatório
     :type respostas_prompts_valor: List[str]
+    :param truncar_colecao: `True` se coleção deve ser truncada antes da
+    inserção e `False` caso contrário
     '''
     template_fields = [
         'id_relatorio', 'respostas_prompts_valor', 'nome_colecao'
@@ -60,6 +64,14 @@ class RelatorioParaMongo(BaseOperator):
         self.truncar_colecao = truncar_colecao
 
     def execute(self, context: Any) -> dict:
+        self.log.info(
+            'Transferindo relatório "%s" para coleção do Mongo "%s" com as '
+            'seguintes respostas para prompts: "%s"%s',
+            self.id_relatorio, self.nome_colecao,
+            self.respostas_prompts_valor,
+            '. Truncando coleção' if self.truncar_colecao else ''
+        )
+
         if isinstance(self.respostas_prompts_valor, str):
             respostas_prompts_valor = json.loads(self.respostas_prompts_valor)
         else:
@@ -78,11 +90,11 @@ class RelatorioParaMongo(BaseOperator):
                 resposta = excecao.args[0]
 
                 if resposta.status_code == 500:
-                    self.log.error(
+                    raise AirflowException(
                         'Erro 500 no servidor. Provável que o relatório ainda '
                         'não esteja pronto para ser exportado. Por favor, '
                         'tente novamente.'
-                    )
+                    ) from None
 
                 raise
 
@@ -108,5 +120,10 @@ class RelatorioParaMongo(BaseOperator):
             inseridos = hook.insert_many(
                 self.nome_colecao, dados.to_dict('records')
             ).inserted_ids
+
+        self.log.info(
+            'Relatório transferido com sucesso, tendo produzido %s registros',
+            len(inseridos)
+        )
 
         self.xcom_push(context, 'registros_inseridos', len(inseridos))

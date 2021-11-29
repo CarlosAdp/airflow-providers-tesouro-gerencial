@@ -105,5 +105,8 @@ class RelatorioParaArquivo(BaseOperator):
             context, 'caminho', os.path.abspath(self.caminho_arquivo)
         )
         self.xcom_push(
-            context, 'tamanho', humanize.naturalsize(len(relatorio))
+            context, 'tamanho', len(relatorio)
+        )
+        self.xcom_push(
+            context, 'tamanho_legivel', humanize.naturalsize(len(relatorio))
         )

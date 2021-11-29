@@ -21,14 +21,16 @@ def consolidar_tabela(livro_excel: openpyxl.Workbook) -> openpyxl.Workbook:
 
     for grupo in grupos:
         esquerda, cima, direita, baixo = grupo.bounds
-        valor = planilha.cell(cima, esquerda).value
         planilha.unmerge_cells(grupo.coord)
+        referencia = planilha.cell(cima, esquerda)
 
         for linha in planilha.iter_rows(
             min_col=esquerda, min_row=cima, max_col=direita, max_row=baixo
         ):
             for celula in linha:
-                celula.value = valor
+                celula.value = referencia.value
+                if referencia.has_style:
+                    celula._style = copy(referencia._style)
 
     # Separa metadados de dados (antes de última linha vazia e depois de
     # última linha vazia)

@@ -6,6 +6,7 @@ description: |
 
 versions:
   - 1.0.1
+  - 1.0.2
 
 additional-dependencies:
   - apache-airflow>=2.1.0

@@ -6,7 +6,7 @@ Provider do Airflow para comunicação com [Tesouro Gerencial](https://tesouroge
 ## Instalação
 
 ```shell
-pip install airflow-providers-siafi
+pip install airflow-providers-tesouro-gerencial
 ```
 
 ## Conteúdo

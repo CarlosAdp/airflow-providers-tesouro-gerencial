@@ -24,8 +24,10 @@ class RelatorioParaMongo(BaseOperator):
     :type id_relatorio:
     :param id_conexao_mongo: ID de conexão ao MongoDB cadastrada no Airflow
     :type id_conexao_mongo: str
-    :param nome_colecao: Nome da coleção no Mongo onde registros serão salvos
-    :type nome_colecao: str
+    :param banco: Nome do banco
+    :type banco: str
+    :param colecao: Nome da coleção
+    :type colecao: str
     :param respostas_prompts_valor: lista com respostas de prompts de valor,
     respeitando sua ordem conforme consta no relatório
     :type respostas_prompts_valor: List[str]
@@ -33,7 +35,7 @@ class RelatorioParaMongo(BaseOperator):
     inserção e `False` caso contrário
     '''
     template_fields = [
-        'id_relatorio', 'respostas_prompts_valor', 'nome_colecao'
+        'id_relatorio', 'respostas_prompts_valor', 'banco', 'colecao'
     ]
 
     id_conta_siafi: str
@@ -41,7 +43,8 @@ class RelatorioParaMongo(BaseOperator):
     respostas_prompts_valor: List[str]
 
     id_conexao_mongo: str
-    nome_colecao: str
+    banco: str
+    colecao: str
     truncar_colecao: bool
 
     def __init__(
@@ -49,8 +52,9 @@ class RelatorioParaMongo(BaseOperator):
         id_conta_siafi: str,
         id_relatorio: str,
         id_conexao_mongo: str,
-        nome_colecao: str,
         respostas_prompts_valor: List[str] = None,
+        banco: str = None,
+        colecao: str = 'teste',
         truncar_colecao: bool = False,
         **kwargs
     ) -> None:
@@ -60,14 +64,15 @@ class RelatorioParaMongo(BaseOperator):
         self.id_relatorio = id_relatorio
         self.respostas_prompts_valor = respostas_prompts_valor
         self.id_conexao_mongo = id_conexao_mongo
-        self.nome_colecao = nome_colecao
+        self.banco = banco
+        self.colecao = colecao
         self.truncar_colecao = truncar_colecao
 
     def execute(self, context: Any) -> dict:
         self.log.info(
             'Transferindo relatório "%s" para coleção do Mongo "%s" com as '
             'seguintes respostas para prompts: "%s"%s',
-            self.id_relatorio, self.nome_colecao,
+            self.id_relatorio, self.colecao,
             self.respostas_prompts_valor,
             '. Truncando coleção' if self.truncar_colecao else ''
         )
@@ -115,10 +120,10 @@ class RelatorioParaMongo(BaseOperator):
 
         with MongoHook(self.id_conexao_mongo) as hook:
             if self.truncar_colecao:
-                hook.delete_many(self.nome_colecao, {})
+                hook.delete_many(self.colecao, {}, self.banco)
 
             inseridos = hook.insert_many(
-                self.nome_colecao, dados.to_dict('records')
+                self.colecao, dados.to_dict('records'), self.banco
             ).inserted_ids
 
         self.log.info(

@@ -11,7 +11,7 @@ from airflow.providers.tesouro_gerencial.transfers.relatorio_para_mongo \
 def teste_tesouro_gerencial():
     teste1 = RelatorioParaArquivo(
         task_id='teste1',
-        id_conta_siafi='teste',
+        id_conexao_siafi='teste',
         id_relatorio='970D89D511EC423631090080EFA5BFD1',
         caminho_arquivo='/tmp/tg.xlsx',
         respostas_prompts_valor=['622110000', '622120000'],
@@ -21,10 +21,11 @@ def teste_tesouro_gerencial():
 
     teste2 = RelatorioParaMongo(
         task_id='teste2',
-        id_conta_siafi='teste',
+        id_conexao_siafi='teste',
         id_relatorio='970D89D511EC423631090080EFA5BFD1',
         id_conexao_mongo='teste_mongo',
-        nome_colecao='teste',
+        banco='teste',
+        colecao='teste',
         respostas_prompts_valor=['622110000', '622120000'],
         truncar_colecao=True,
         retries=10,

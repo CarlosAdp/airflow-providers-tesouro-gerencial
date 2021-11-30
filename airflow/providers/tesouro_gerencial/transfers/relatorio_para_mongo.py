@@ -18,8 +18,8 @@ class RelatorioParaMongo(BaseOperator):
     '''Realiza o download de um relatório do Tesouro Gerencial para um
     coleção de banco MongoDB.
 
-    :param id_conta_siafi: ID de conta do SIAFI cadastrada no Airflow
-    :type id_conta_siafi: str
+    :param id_conexao_siafi: ID de conta do SIAFI cadastrada no Airflow
+    :type id_conexao_siafi: str
     :param id_relatorio: ID de relatório existente no Tesouro Gerencial
     :type id_relatorio:
     :param id_conexao_mongo: ID de conexão ao MongoDB cadastrada no Airflow
@@ -38,7 +38,7 @@ class RelatorioParaMongo(BaseOperator):
         'id_relatorio', 'respostas_prompts_valor', 'banco', 'colecao'
     ]
 
-    id_conta_siafi: str
+    id_conexao_siafi: str
     id_relatorio: str
     respostas_prompts_valor: List[str]
 
@@ -49,7 +49,7 @@ class RelatorioParaMongo(BaseOperator):
 
     def __init__(
         self,
-        id_conta_siafi: str,
+        id_conexao_siafi: str,
         id_relatorio: str,
         id_conexao_mongo: str,
         respostas_prompts_valor: List[str] = None,
@@ -60,7 +60,7 @@ class RelatorioParaMongo(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.id_conta_siafi = id_conta_siafi
+        self.id_conexao_siafi = id_conexao_siafi
         self.id_relatorio = id_relatorio
         self.respostas_prompts_valor = respostas_prompts_valor
         self.id_conexao_mongo = id_conexao_mongo
@@ -82,7 +82,7 @@ class RelatorioParaMongo(BaseOperator):
         else:
             respostas_prompts_valor = self.respostas_prompts_valor
 
-        with TesouroGerencialHook(self.id_conta_siafi) as hook:
+        with TesouroGerencialHook(self.id_conexao_siafi) as hook:
             instante = datetime.now()
 
             try:

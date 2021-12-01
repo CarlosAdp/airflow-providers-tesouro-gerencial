@@ -33,6 +33,10 @@ class RelatorioParaMongo(BaseOperator):
     :type respostas_prompts_valor: List[str]
     :param truncar_colecao: `True` se coleção deve ser truncada antes da
     inserção e `False` caso contrário
+    :type truncar_colecao: bool
+    :param nulos_para_zero: `True` se o usuário quiser transformar nulos em
+    zero, `False` caso contrário
+    :type nulos_para_zero: bool
     '''
     template_fields = [
         'id_relatorio', 'respostas_prompts_valor', 'banco', 'colecao'

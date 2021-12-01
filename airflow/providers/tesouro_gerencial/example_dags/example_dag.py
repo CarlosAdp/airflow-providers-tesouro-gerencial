@@ -28,6 +28,7 @@ def teste_tesouro_gerencial():
         colecao='teste',
         respostas_prompts_valor=['622110000', '622120000'],
         truncar_colecao=True,
+        nulos_para_zero=True,
         retries=10,
         retry_delay=timedelta(minutes=2)
     )

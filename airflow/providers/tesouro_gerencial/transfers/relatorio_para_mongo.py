@@ -46,6 +46,7 @@ class RelatorioParaMongo(BaseOperator):
     banco: str
     colecao: str
     truncar_colecao: bool
+    nulos_para_zero: bool
 
     def __init__(
         self,
@@ -56,6 +57,7 @@ class RelatorioParaMongo(BaseOperator):
         banco: str = None,
         colecao: str = 'teste',
         truncar_colecao: bool = False,
+        nulos_para_zero: bool = False,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -67,6 +69,7 @@ class RelatorioParaMongo(BaseOperator):
         self.banco = banco
         self.colecao = colecao
         self.truncar_colecao = truncar_colecao
+        self.nulos_para_zero = nulos_para_zero
 
     def execute(self, context: Any) -> dict:
         self.log.info(
@@ -116,6 +119,10 @@ class RelatorioParaMongo(BaseOperator):
             dados = pandas.read_excel(arquivo)
 
         dados.columns = dados.columns.str.replace('.', '', regex=False)
+
+        if self.nulos_para_zero:
+            dados = dados.fillna(0)
+
         dados['Timestamp'] = instante
 
         with MongoHook(self.id_conexao_mongo) as hook:

@@ -100,6 +100,7 @@ class TesouroGerencialHook(SIAFIHook):
             'taskEnv': 'juil_iframe',
             'taskContent': 'json',
             'expandPageBy': True,
+            'maxRows': 50000,
         }
 
         params.update({
